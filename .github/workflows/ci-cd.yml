@@ -5,32 +5,37 @@ on:
     branches:
       - main
 
+# ✅ Required for pushing to GHCR with GITHUB_TOKEN
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout CI repository
+      # 1) Checkout CI repo (this repo)
       - name: Checkout CI repo
         uses: actions/checkout@v4
 
-      # 2️⃣ Login to GitHub Container Registry
+      # 2) Login to GHCR (no PAT needed)
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.CR_PAT }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 3️⃣ Build and push Docker image
+      # 3) Build & Push image to GHCR
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ghcr.io/jumptotechschooldevops/k8s-ci-build:${{ github.sha }}
+          tags: ghcr.io/${{ github.repository_owner }}/k8s-ci-build:${{ github.sha }}
 
-      # 4️⃣ Checkout GitOps repository
+      # 4) Checkout GitOps repo (deployment manifests)
       - name: Checkout GitOps repo
         uses: actions/checkout@v4
         with:
@@ -38,19 +43,20 @@ jobs:
           token: ${{ secrets.GITOPS_PAT }}
           path: gitops
 
-      # 5️⃣ Force-set image tag in GitOps deployment.yaml
-      - name: Update image tag in GitOps repo
+      # 5) Update image tag in GitOps deployment.yaml
+      - name: Update image tag
         run: |
           cd gitops
-          sed -i 's|image:.*|image: ghcr.io/jumptotechschooldevops/k8s-ci-build:${{ github.sha }}|g' deployment.yaml
+          sed -i "s/PLACEHOLDER/${{ github.sha }}/g" deployment.yaml
 
-      # 6️⃣ Commit and push GitOps changes
-      - name: Commit and push GitOps changes
+      # 6) Commit & push changes back to GitOps repo
+      - name: Commit and push
         run: |
           cd gitops
-          git config user.name "GitHub Actions CI"
+          git config user.name "GitHub Actions"
           git config user.email "ci@jumptotech.dev"
           git add deployment.yaml
-          git commit -m "Update image to ${{ github.sha }}"
+          git commit -m "Update image to ${{ github.sha }}" || echo "No changes"
           git push
+
 
