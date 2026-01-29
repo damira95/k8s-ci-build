@@ -39,7 +39,7 @@ jobs:
       - name: Checkout GitOps repo
         uses: actions/checkout@v4
         with:
-          repository: jumptotechschooldevops/grade-api-gitops
+          repository: damira95/grade-api-gitops-
           token: ${{ secrets.GITOPS_PAT }}
           path: gitops
 
